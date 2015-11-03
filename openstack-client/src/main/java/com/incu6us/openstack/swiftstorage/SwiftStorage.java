@@ -8,9 +8,12 @@ import com.incu6us.openstack.utils.PropertyUtil;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.Predicate;
 import org.openstack4j.api.OSClient;
+import org.openstack4j.api.client.IOSClientBuilder;
 import org.openstack4j.core.transport.internal.HttpLoggingFilter;
 import org.openstack4j.model.common.DLPayload;
 import org.openstack4j.model.common.Payload;
+import org.openstack4j.model.identity.Access;
+import org.openstack4j.model.identity.URLResolverParams;
 import org.openstack4j.model.storage.object.SwiftContainer;
 import org.openstack4j.model.storage.object.SwiftObject;
 import org.openstack4j.model.storage.object.options.ObjectLocation;
@@ -21,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -39,13 +43,22 @@ public class SwiftStorage {
     private Boolean debug = false;
 
     /**
+     * Get PropertiesUtil
+     *
+     * @return
+     */
+    public PropertyUtil getUtil() {
+        return util;
+    }
+
+    /**
      * search in resource-folder for "swift.properties"
      * With property file, which must contain:
-     * debug=false
-     * endpoint=https://exaple.com:5000/v2.0
-     * username=admin
-     * password=p@ssw0rd
-     * tenant=TENANT01
+     * swift.debug=false
+     * swift.endpoint=https://exaple.com:5000/v2.0
+     * swift.username=admin
+     * swift.password=p@ssw0rd
+     * swift.tenant=TENANT01
      */
     public SwiftStorage() {
         util = new PropertyUtil();
@@ -53,12 +66,25 @@ public class SwiftStorage {
     }
 
     /**
+     * Set "Prporties":
+     * swift.debug=false
+     * swift.endpoint=https://exaple.com:5000/v2.0
+     * swift.username=admin
+     * swift.password=p@ssw0rd
+     * swift.tenant=TENANT01
+     */
+    public SwiftStorage(Properties properties) {
+        util = new PropertyUtil(properties);
+        init();
+    }
+
+    /**
      * With property file, which must contain:
-     * debug=false
-     * endpoint=https://exaple.com:5000/v2.0
-     * username=admin
-     * password=p@ssw0rd
-     * tenant=TENANT01
+     * swift.debug=false
+     * swift.endpoint=https://exaple.com:5000/v2.0
+     * swift.username=admin
+     * swift.password=p@ssw0rd
+     * swift.tenant=TENANT01
      *
      * @param prefixDirConf for path in resource dir
      */
@@ -69,11 +95,11 @@ public class SwiftStorage {
 
     /**
      * With property file, which must contain:
-     * debug=false
-     * endpoint=https://exaple.com:5000/v2.0
-     * username=admin
-     * password=p@ssw0rd
-     * tenant=TENANT01
+     * swift.debug=false
+     * swift.endpoint=https://exaple.com:5000/v2.0
+     * swift.username=admin
+     * swift.password=p@ssw0rd
+     * swift.tenant=TENANT01
      *
      * @param prefixDirConf for path in resource dir
      * @param confFile      name for new file name (against "swift.properties")
@@ -265,21 +291,21 @@ public class SwiftStorage {
      */
     private void init() {
         // For debug output
-        debug = Boolean.parseBoolean(util.getProperties().getProperty("debug"));
+        debug = Boolean.parseBoolean(util.getProperties().getProperty("swift.debug"));
         LOGGER.debug("HTTP Debug: " + debug);
 
         OSFactory.enableHttpLoggingFilter(debug);
 
-        LOGGER.debug("Endpoint: " + util.getProperties().getProperty("endpoint"));
-        LOGGER.debug("Username: " + util.getProperties().getProperty("username"));
-        LOGGER.debug("Password: " + util.getProperties().getProperty("password"));
-        LOGGER.debug("Tenant: " + util.getProperties().getProperty("tenant"));
+        LOGGER.debug("Endpoint: " + util.getProperties().getProperty("swift.endpoint"));
+        LOGGER.debug("Username: " + util.getProperties().getProperty("swift.username"));
+        LOGGER.debug("Password: " + util.getProperties().getProperty("swift.password"));
+        LOGGER.debug("Tenant: " + util.getProperties().getProperty("swift.tenant"));
 
         try {
             client = OSFactory.builder()
-                    .endpoint(util.getProperties().getProperty("endpoint"))
-                    .credentials(util.getProperties().getProperty("username"), util.getProperties().getProperty("password"))
-                    .tenantName(util.getProperties().getProperty("tenant")).authenticate();
+                    .endpoint(util.getProperties().getProperty("swift.endpoint"))
+                    .credentials(util.getProperties().getProperty("swift.username"), util.getProperties().getProperty("swift.password"))
+                    .tenantName(util.getProperties().getProperty("swift.tenant")).authenticate();
         } catch (AbstractMethodError e) {
             LOGGER.error("Client Builder failed: " + e);
         }

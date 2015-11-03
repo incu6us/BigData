@@ -1,3 +1,0 @@
-<logger name="org.apache.http">
-    <level value="debug"/>
-</logger>

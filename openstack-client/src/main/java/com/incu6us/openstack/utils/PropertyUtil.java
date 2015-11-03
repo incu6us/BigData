@@ -30,6 +30,10 @@ public class PropertyUtil {
         loadProperties();
     }
 
+    public PropertyUtil(Properties prop) {
+        this.prop = prop;
+    }
+
     /**
      * @param prefixDir
      */
@@ -71,7 +75,7 @@ public class PropertyUtil {
             propertyFileName = prefixDir + "/" + confFile;
         }
 
-        LOGGER.debug("Property file: "+propertyFileName);
+        LOGGER.debug("Property file: " + propertyFileName);
 
         is = getClass().getClassLoader().getResourceAsStream(propertyFileName);
         LOGGER.info(getClass().getClassLoader().toString());
