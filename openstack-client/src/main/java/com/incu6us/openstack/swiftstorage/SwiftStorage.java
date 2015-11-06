@@ -1,14 +1,11 @@
 package com.incu6us.openstack.swiftstorage;
 
-/**
- * Created by vpryimak on 22.10.2015.
- */
-
 import com.incu6us.openstack.utils.PropertyUtil;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.Predicate;
 import org.openstack4j.api.OSClient;
 import org.openstack4j.api.client.IOSClientBuilder;
+import org.openstack4j.api.storage.ObjectStorageService;
 import org.openstack4j.core.transport.internal.HttpLoggingFilter;
 import org.openstack4j.model.common.DLPayload;
 import org.openstack4j.model.common.Payload;
@@ -27,6 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
+import org.openstack4j.openstack.internal.OSClientSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,15 +41,6 @@ public class SwiftStorage {
     private Boolean debug = false;
 
     /**
-     * Get PropertiesUtil
-     *
-     * @return
-     */
-    public PropertyUtil getUtil() {
-        return util;
-    }
-
-    /**
      * search in resource-folder for "swift.properties"
      * With property file, which must contain:
      * swift.debug=false
@@ -63,6 +52,15 @@ public class SwiftStorage {
     public SwiftStorage() {
         util = new PropertyUtil();
         init();
+    }
+
+    /**
+     * Create instance from Access
+     * @http http://openstack4j.com/learn/threads/
+     * @param access
+     */
+    public SwiftStorage(Access access) {
+        client = OSFactory.clientFromAccess(access);
     }
 
     /**
@@ -110,6 +108,32 @@ public class SwiftStorage {
     }
 
     /**
+     * Get PropertiesUtil
+     *
+     * @return
+     */
+    public PropertyUtil getUtil() {
+        return util;
+    }
+
+    /**
+     * For multi-threaded app: @http http://openstack4j.com/learn/threads/
+     * @return
+     */
+    public OSClient getClient() {
+        return client;
+    }
+
+    /**
+     * For multi-threaded app: @http http://openstack4j.com/learn/threads/
+     *
+     * @param client
+     */
+    public void setClient(OSClient client) {
+        this.client = client;
+    }
+
+    /**
      * Will list all containers in Object Storage
      *
      * @return - List<SwiftContainer> list of Swift containers
@@ -148,6 +172,45 @@ public class SwiftStorage {
         };
 
         listObj.addAll(CollectionUtils.select(client.objectStorage().objects().list(container), condition));
+
+        return listObj;
+    }
+
+    /**
+     * Get objects starts with ...
+     *
+     * @param container
+     * @param objectName
+     * @return
+     */
+    public List<SwiftObject> listObjectsByPathFromContainer(String container, final String objectName) {
+        final String o;
+        if(objectName.endsWith("/")){
+            o = objectName;
+        }else{
+            o = objectName+"/";
+        }
+
+        List<SwiftObject> listObj = new ArrayList<SwiftObject>();
+
+        Predicate condition = new Predicate() {
+            public boolean evaluate(Object object) {
+                return ((SwiftObject) object).getName().matches(Pattern.compile("^" + o + ".*").pattern());
+            }
+        };
+
+        listObj.addAll(CollectionUtils.select(client.objectStorage().objects().list(container), condition));
+
+        // If choosed not pseufo-directory then get a single file
+        if(listObj.size() == 0){
+            Predicate conditionSingle = new Predicate() {
+                public boolean evaluate(Object object) {
+                    return ((SwiftObject) object).getName().matches(Pattern.compile("^" + objectName).pattern());
+                }
+            };
+
+            listObj.addAll(CollectionUtils.select(client.objectStorage().objects().list(container), conditionSingle));
+        }
 
         return listObj;
     }
@@ -221,7 +284,7 @@ public class SwiftStorage {
     }
 
     /**
-     * Read an object from Swift Storage
+     * list an object from Swift Storage
      *
      * @param container
      * @param objectName
@@ -271,6 +334,12 @@ public class SwiftStorage {
         client.objectStorage().objects().delete(oLocation);
     }
 
+    @Override
+    public String toString() {
+        return "containers size: "+client.objectStorage().containers().list().size()+"\n"+
+                "object of first container"+client.objectStorage().objects().list(client.objectStorage().containers().list().get(0).getName());
+    }
+
     /**
      * System separator which is different for Windows and *Unix systems
      *
@@ -285,6 +354,7 @@ public class SwiftStorage {
 
         return "/";
     }
+
 
     /**
      * Init method
@@ -310,6 +380,5 @@ public class SwiftStorage {
             LOGGER.error("Client Builder failed: " + e);
         }
         LOGGER.debug("HTTP debug: " + System.getProperties().getProperty(HttpLoggingFilter.class.getName()));
-        LOGGER.debug("Endpoint: " + client.getEndpoint());
     }
 }
